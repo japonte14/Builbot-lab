@@ -1,191 +1,428 @@
-# Contributing to BuildBot Lab
+# 🤝 Contribuir a BuildBot Lab
 
-Thank you for your interest in BuildBot Lab.
+Gracias por tu interés en contribuir a BuildBot Lab.
 
-BuildBot Lab is an early-stage educational robotics project. The project is currently in planning/pre-development, so architecture and implementation details may change.
+BuildBot Lab es un proyecto educativo de robótica en una etapa temprana de desarrollo.
 
-## Before Contributing
+Actualmente existe un prototipo experimental y estamos trabajando progresivamente para convertirlo en una arquitectura modular, comprobable y mantenible.
 
-Please read:
+Las contribuciones deben priorizar:
 
-1. `README.md`
-2. The relevant GitHub Issue
-3. Existing discussion on that Issue
+- simplicidad;
+- valor educativo;
+- claridad;
+- mantenibilidad;
+- resultados verificables.
 
-Do not implement features that have not been agreed upon in an Issue.
+---
 
-## Development Principles
+# Antes de contribuir
 
-### 1. Keep the MVP small
+Antes de comenzar:
 
-The initial goal is not to build a complete robotics platform.
+1. Lee `README.md`.
+2. Revisa los Issues existentes.
+3. Selecciona un Issue antes de implementar una funcionalidad importante.
+4. Si existen dudas, discútelas primero en el Issue.
+5. Mantén los cambios limitados al alcance del Issue.
 
-The first objective is to demonstrate a small end-to-end learning experience:
+Evita combinar en una misma Pull Request:
 
-**Configure → Program → Simulate → Observe → Complete a challenge**
+- refactorización;
+- nuevas funcionalidades;
+- cambios importantes de interfaz;
+- nuevas dependencias;
+- cambios de arquitectura.
 
-### 2. Do not claim unverified functionality
+---
 
-Do not document a feature as working until it has been implemented and verified.
+# Principios de desarrollo
 
-This includes:
+## 1. Conservar el comportamiento existente
 
-- simulation accuracy;
-- sensor accuracy;
-- Python execution;
-- Blockly integration;
-- cloud persistence;
-- compatibility;
-- performance;
-- test results.
+El prototipo HTML original se conservará como referencia durante el proceso de modularización.
 
-### 3. Make robotics concepts understandable
-
-The primary audience is secondary-school students.
-
-Code and interfaces should prioritize:
-
-- clarity;
-- understandable terminology;
-- predictable behavior;
-- educational value.
-
-Advanced capabilities should not make the beginner experience unnecessarily complex.
-
-## Proposed Development Workflow
-
-1. Select a GitHub Issue.
-2. Discuss uncertainties in the Issue.
-3. Create a branch.
-4. Make one focused change.
-5. Add or update tests when applicable.
-6. Update documentation when behavior changes.
-7. Open a Pull Request.
-8. Reference the associated Issue.
-
-Example branch names:
+Al separar una parte del prototipo:
 
 ```text
-feature/basic-robot
+Extraer
+   ↓
+Verificar
+   ↓
+Crear pruebas
+   ↓
+Mejorar
+```
+
+Primero debemos conservar el comportamiento existente.
+
+Después podremos mejorarlo.
+
+---
+
+## 2. Mantener pequeño el MVP
+
+El objetivo inicial es demostrar el siguiente recorrido:
+
+```text
+Configurar
+    ↓
+Programar
+    ↓
+Simular
+    ↓
+Observar
+    ↓
+Resolver un reto
+```
+
+Una funcionalidad que no contribuya directamente a este flujo probablemente pueda esperar a una fase posterior.
+
+---
+
+## 3. Separar responsabilidades
+
+La arquitectura objetivo diferencia claramente:
+
+```text
+Interfaz
+│
+├── Programación
+├── Renderizado
+└── Telemetría
+
+Motor de simulación
+│
+├── Cinemática
+├── Sensores
+├── Colisiones
+├── Metas
+└── Retos
+```
+
+Los módulos del simulador deben, siempre que sea posible:
+
+1. recibir datos;
+2. calcular;
+3. devolver resultados.
+
+No deberían modificar directamente elementos HTML.
+
+De la misma manera, el renderizado debe mostrar el estado del simulador sin alterar su comportamiento físico.
+
+---
+
+# Flujo de trabajo
+
+## 1. Selecciona un Issue
+
+Cada cambio significativo debe estar relacionado con un Issue.
+
+## 2. Crea una rama
+
+Ejemplos:
+
+```text
 feature/distance-sensor
 feature/scenario-editor
-fix/robot-reset
+
+refactor/kinematics
+refactor/canvas-renderer
+
+fix/robot-collision
+
+test/kinematics
+
 docs/update-readme
 ```
 
-## Pull Requests
+## 3. Implementa un cambio específico
 
-A Pull Request should explain:
+Evita modificaciones no relacionadas.
 
-### What changed?
+## 4. Verifica
 
-Describe the implementation.
+Cuando sea aplicable, agrega pruebas automatizadas.
 
-### Why?
+## 5. Abre una Pull Request
 
-Explain which requirement or Issue it addresses.
+La Pull Request debe hacer referencia al Issue correspondiente.
 
-### How was it verified?
+---
 
-List only tests or manual checks that were actually performed.
+# Commits
 
-Example:
+Utiliza mensajes pequeños y descriptivos.
+
+Ejemplos:
 
 ```text
-Verification:
-- [ ] Unit tests added
-- [ ] Existing tests pass
-- [ ] Tested manually
+chore: preserve standalone prototype
 ```
 
-Do not check a box unless the corresponding verification was actually performed.
+```text
+refactor: extract level configuration
+```
 
-### Remaining limitations
+```text
+refactor: extract differential drive kinematics
+```
 
-Explicitly state anything that has not been tested or completed.
+```text
+test: add straight movement kinematics test
+```
 
-## Proposed Technology
+```text
+fix: prevent zero wheel separation
+```
 
-The current technology direction includes:
+```text
+docs: document simulation coordinate system
+```
 
-- React
-- TypeScript
-- Vite
-- Konva / react-konva
-- Blockly
-- Python / Pyodide
-- Zustand
-- Zod
-- IndexedDB
-- Supabase
-- Vitest
-- Playwright
+Aunque la documentación del proyecto esté en español, recomendamos mantener los nombres técnicos de ramas y commits en inglés para mantener consistencia con las convenciones habituales de proyectos open source.
 
-These choices are proposals until they are validated during development.
+---
 
-Do not introduce another major framework or service without discussing it first.
+# Pull Requests
 
-## Testing Expectations
+Una Pull Request debe explicar:
 
-Tests do not currently exist because implementation has not started.
+## ¿Qué cambió?
 
-Once development begins, the intended test strategy is:
+Describe concretamente la implementación.
 
-### Unit tests
+## ¿Por qué?
 
-Vitest is proposed for:
+Indica el Issue o requisito que resuelve.
 
-- differential-drive calculations;
-- sensor calculations;
-- project validation;
-- challenge conditions.
+## ¿Cómo se verificó?
 
-### End-to-end tests
+Utiliza solamente los elementos que realmente hayas ejecutado:
 
-Playwright is proposed for critical user flows such as:
+```text
+Verificación:
 
-1. create/open project;
-2. configure robot;
-3. create program;
-4. run simulation;
-5. complete a challenge;
-6. save/reopen the project.
+- [ ] Se agregaron o actualizaron pruebas unitarias.
+- [ ] Las pruebas existentes se ejecutaron correctamente.
+- [ ] Se realizó una prueba manual.
+- [ ] Se actualizó la documentación.
+```
 
-Exact test cases must be created alongside the implementation.
+No marques una prueba como completada si realmente no fue ejecutada.
 
-## Security
+## Limitaciones conocidas
 
-Do not assume code supplied by a student is safe.
+Indica claramente cualquier elemento que:
 
-Python execution must eventually consider:
+- todavía no funcione;
+- no haya sido probado;
+- necesite investigación adicional.
 
-- infinite loops;
-- execution time limits;
-- memory consumption;
-- browser responsiveness;
-- exposed APIs;
-- error recovery.
+---
 
-Security claims require verification.
+# Pruebas
 
-## Student Privacy
+La intención es utilizar pruebas automatizadas para los componentes matemáticos y de comportamiento.
 
-Do not add unnecessary personal information to user profiles.
+## Pruebas unitarias
 
-Before implementing features involving minors' data, authentication, analytics, public profiles, or project sharing, open an Issue describing the data involved and the reason it is required.
+Se propone utilizar Vitest para componentes como:
 
-## Documentation
+- cinemática diferencial;
+- sensores;
+- colisiones;
+- detección de meta;
+- validación de proyectos.
 
-Documentation must distinguish between:
+Por ejemplo:
 
-- implemented functionality;
-- planned functionality;
-- future ideas.
+```text
+Motor izquierdo = 50 %
+Motor derecho   = 50 %
 
-If something has not been verified, say so.
+Resultado esperado:
 
-## License
+El robot se desplaza en línea recta.
+La orientación no cambia.
+```
 
-The project's license has not yet been confirmed.
+Otro caso:
 
-Contributors should not assume a specific open-source license until a LICENSE file is committed.
+```text
+Motor izquierdo = -50 %
+Motor derecho   = 50 %
+
+Resultado esperado:
+
+El robot rota sobre su eje sin desplazamiento lineal intencional.
+```
+
+Los resultados numéricos deberán definirse utilizando unidades y convenciones documentadas.
+
+---
+
+# Cinemática
+
+Antes de afirmar que la simulación es físicamente precisa deben definirse y verificarse:
+
+- sistema de coordenadas;
+- unidad de distancia;
+- unidad angular;
+- dirección correspondiente al ángulo cero;
+- sentido positivo de rotación;
+- distancia entre ruedas;
+- relación entre porcentaje de motor y velocidad;
+- paso temporal de simulación;
+- tolerancias numéricas.
+
+No asumas estas convenciones silenciosamente.
+
+Deben documentarse.
+
+---
+
+# Python
+
+Python será el lenguaje principal de programación mediante código.
+
+El prototipo contiene actualmente una implementación experimental con sintaxis similar a Python.
+
+No debe describirse como un intérprete completo de Python.
+
+Una implementación futura podrá utilizar Pyodide dentro de un Web Worker.
+
+Antes de considerar segura esta ejecución deberán evaluarse:
+
+- ciclos infinitos;
+- límites de tiempo;
+- memoria;
+- APIs disponibles;
+- bloqueo de la interfaz;
+- aislamiento;
+- recuperación ante errores.
+
+No afirmes que la ejecución es segura hasta haberla verificado.
+
+---
+
+# Programación mediante bloques
+
+Blockly es la tecnología propuesta para la futura programación visual.
+
+Los bloques y Python no deben implementar motores distintos de simulación.
+
+Ambos métodos deberán utilizar una API común.
+
+```text
+Blockly ───────┐
+               │
+               ▼
+           Robot API
+               │
+               ▼
+         Simulación
+               ▲
+               │
+Python ────────┘
+```
+
+---
+
+# Dependencias
+
+No agregues una dependencia importante sin documentar:
+
+- por qué es necesaria;
+- qué problema resuelve;
+- qué alternativas existen;
+- qué licencia utiliza.
+
+También debes verificar que el problema no pueda resolverse razonablemente con las herramientas ya incluidas en el proyecto.
+
+---
+
+# Seguridad
+
+Nunca subas al repositorio:
+
+- contraseñas;
+- tokens;
+- claves privadas;
+- service keys;
+- secretos de Supabase;
+- archivos `.env` con secretos;
+- información personal de estudiantes.
+
+---
+
+# Privacidad
+
+BuildBot Lab está pensado también para estudiantes de secundaria.
+
+Debemos utilizar el principio de minimización de datos.
+
+No agregues recopilación de información como:
+
+- dirección particular;
+- número de teléfono;
+- fecha completa de nacimiento;
+- centro educativo;
+- nombre real obligatorio;
+
+sin una necesidad documentada y una revisión de privacidad.
+
+Las funciones relacionadas con:
+
+- autenticación;
+- analítica;
+- almacenamiento en la nube;
+- perfiles públicos;
+- proyectos compartidos;
+
+deberán ser revisadas antes de desplegarse públicamente.
+
+---
+
+# Documentación
+
+La documentación deberá distinguir siempre entre:
+
+## Implementado
+
+Existe y ha sido verificado al nivel indicado.
+
+## Experimental
+
+Existe, pero todavía requiere validación.
+
+## Planificado
+
+Forma parte del desarrollo previsto, pero todavía no está implementado.
+
+## Idea futura
+
+Forma parte de la visión del proyecto pero todavía no existe un compromiso de implementación.
+
+No presentes una funcionalidad planificada como si ya estuviera implementada.
+
+---
+
+# Definición de terminado
+
+Un Issue puede considerarse terminado cuando:
+
+- se completó el alcance acordado;
+- se agregaron las pruebas aplicables;
+- las pruebas relevantes se ejecutaron correctamente;
+- se actualizó la documentación necesaria;
+- se documentaron las limitaciones conocidas;
+- la Pull Request fue revisada.
+
+Nunca reportes pruebas que no hayan sido realmente ejecutadas.
+
+---
+
+# Licencia
+
+Al contribuir a BuildBot Lab aceptas que tus contribuciones sean distribuidas bajo la licencia MIT del proyecto.
