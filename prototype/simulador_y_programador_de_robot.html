@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoboCode Studio | Motores & Sensores</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
+        ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.5); border-radius: 4px; }
+        .block-active { box-shadow: 0 0 0 3px #0ea5e9, 0 0 15px rgba(14, 165, 233, 0.5); transform: scale(1.02); transition: all 0.15s ease; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans h-full flex flex-col overflow-hidden select-none">
+
+    <!-- HEADER / BARRA DE NAVEGACIÓN -->
+    <header class="h-16 bg-slate-950 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black text-xl shadow-lg shadow-cyan-500/20">
+                <i class="fas fa-microchip"></i>
+            </div>
+            <div>
+                <h1 class="font-extrabold text-lg tracking-wide text-white leading-tight flex items-center gap-2">
+                    RoboCode <span class="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Pro Sensor & Physics</span>
+                </h1>
+                <p class="text-xs text-slate-400">Simulador de Robótica Diferencial con Sensores en Tiempo Real</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="bg-slate-900 border border-slate-800 rounded-xl p-1 flex items-center gap-1">
+                <span class="text-xs font-semibold text-slate-400 px-2 hidden sm:inline"><i class="fas fa-trophy text-amber-400 mr-1"></i>Reto:</span>
+                <select id="levelSelect" class="bg-slate-800 text-white text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-slate-700 focus:outline-none focus:border-cyan-500 cursor-pointer">
+                    <option value="1">1: Control Básico de Motores</option>
+                    <option value="2">2: Esquivar Obstáculo (Ultrasonido)</option>
+                    <option value="3">3: Seguidor de Línea (Infrarrojos)</option>
+                    <option value="4">4: Laberinto Autónomo</option>
+                    <option value="sandbox">🛠️ Modo Libre (Sandbox)</option>
+                </select>
+            </div>
+
+            <button id="btnHelp" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors border border-slate-700" title="Guía de API">
+                <i class="fas fa-question-circle text-base"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+
+        <!-- COLUMNA IZQUIERDA: CANVAS + TELEMETRÍA (5 COLS) -->
+        <div class="lg:col-span-5 bg-slate-900/50 p-4 sm:p-5 flex flex-col gap-4 border-r border-slate-800 overflow-y-auto">
+            
+            <!-- CANVAS Y OVERLAY -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 flex flex-col items-center justify-center relative shadow-xl">
+                <div class="w-full flex items-center justify-between mb-3 text-xs font-semibold">
+                    <div class="flex items-center gap-2 text-slate-300 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+                        <i class="fas fa-bullseye text-cyan-400"></i>
+                        <span id="levelGoalText">Llega a la meta verde</span>
+                    </div>
+                    <div class="flex items-center gap-2 text-slate-300 bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+                        <i class="fas fa-gem text-amber-400"></i>
+                        <span id="gemCounter">Gemas: 0 / 0</span>
+                    </div>
+                </div>
+
+                <div class="relative max-w-full aspect-square flex items-center justify-center bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-inner">
+                    <canvas id="simCanvas" width="450" height="450" class="w-full h-full object-contain cursor-pointer"></canvas>
+                    
+                    <div id="canvasOverlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 hidden transition-all duration-300 z-10">
+                        <div id="overlayIcon" class="text-5xl"></div>
+                        <h3 id="overlayTitle" class="text-xl font-bold text-white"></h3>
+                        <p id="overlayMessage" class="text-xs text-slate-300 text-center px-6"></p>
+                        <button id="overlayBtn" class="mt-2 px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-cyan-500/30">
+                            Reintentar
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Herramientas Sandbox -->
+                <div id="sandboxTools" class="w-full mt-3 p-2 bg-slate-900 rounded-xl border border-slate-800 hidden">
+                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 block text-center">Edición Sandbox</span>
+                    <div class="flex justify-center gap-2 flex-wrap">
+                        <button data-tool="robot" class="tool-btn px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs active-tool">🤖 Robot</button>
+                        <button data-tool="goal" class="tool-btn px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs">🏁 Meta</button>
+                        <button data-tool="wall" class="tool-btn px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs">🧱 Muro</button>
+                        <button data-tool="line" class="tool-btn px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs">➖ Línea</button>
+                        <button data-tool="erase" class="tool-btn px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs text-rose-400">🧹 Borrar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL DE TELEMETRÍA EN TIEMPO REAL -->
+            <div class="bg-slate-950 rounded-2xl border border-slate-800 p-4 flex flex-col gap-3">
+                <span class="text-[11px] font-extrabold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
+                    <i class="fas fa-chart-line"></i> Telemetría de Sensores & Motores
+                </span>
+                
+                <!-- Lectura Distancias (Raycasting Ultrasonido) -->
+                <div class="grid grid-cols-3 gap-2 text-center text-xs">
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 block">Ultrasonido Izq</span>
+                        <span id="telemetryDistLeft" class="font-mono font-bold text-cyan-400">0 cm</span>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 block">Ultrasonido Frontal</span>
+                        <span id="telemetryDistFront" class="font-mono font-bold text-cyan-400">0 cm</span>
+                    </div>
+                    <div class="bg-slate-900 p-2 rounded-xl border border-slate-800">
+                        <span class="text-[10px] text-slate-400 block">Ultrasonido Der</span>
+                        <span id="telemetryDistRight" class="font-mono font-bold text-cyan-400">0 cm</span>
+                    </div>
+                </div>
+
+                <!-- Lectura Infrarrojos Suelo & Motores -->
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1">
+                        <span class="text-[10px] text-slate-400 font-semibold">Sensores Suelo (IR)</span>
+                        <div class="flex items-center justify-around mt-1">
+                            <span id="irSensorLeft" class="w-4 h-4 rounded-full bg-slate-700 border border-slate-500" title="Suelo Izquierdo"></span>
+                            <span id="irSensorCenter" class="w-4 h-4 rounded-full bg-slate-700 border border-slate-500" title="Suelo Centro"></span>
+                            <span id="irSensorRight" class="w-4 h-4 rounded-full bg-slate-700 border border-slate-500" title="Suelo Derecho"></span>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex flex-col gap-1">
+                        <span class="text-[10px] text-slate-400 font-semibold">Potencia Servos</span>
+                        <div class="flex justify-between items-center font-mono text-xs">
+                            <span class="text-amber-400">M.Izq: <b id="telemetryMotorLeft">0%</b></span>
+                            <span class="text-amber-400">M.Der: <b id="telemetryMotorRight">0%</b></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Control de Simulación -->
+                <div class="flex items-center gap-2 mt-1">
+                    <button id="btnRun" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+                        <i class="fas fa-play text-xs"></i> <span>Ejecutar</span>
+                    </button>
+                    <button id="btnPause" class="hidden py-2.5 px-4 bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm rounded-xl transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2">
+                        <i class="fas fa-pause text-xs"></i> <span>Pausa</span>
+                    </button>
+                    <button id="btnReset" class="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-xl transition-all border border-slate-700 flex items-center justify-center gap-2">
+                        <i class="fas fa-rotate-left text-xs"></i> <span>Reset</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: PROGRAMACIÓN (7 COLS) -->
+        <div class="lg:col-span-7 bg-slate-900 p-4 sm:p-5 flex flex-col gap-4 overflow-hidden">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 shrink-0">
+                <div class="flex items-center gap-2">
+                    <button id="tabBlocks" class="px-3.5 py-1.5 bg-slate-800 text-cyan-400 font-bold text-xs rounded-lg border border-slate-700 flex items-center gap-2">
+                        <i class="fas fa-cubes"></i> Bloques Motores & Sensores
+                    </button>
+                    <button id="tabPython" class="px-3.5 py-1.5 bg-transparent hover:bg-slate-800 text-slate-400 font-bold text-xs rounded-lg transition-all flex items-center gap-2">
+                        <i class="fab fa-python text-amber-400"></i> Code Python Real
+                    </button>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="btnSyncFromBlocks" class="hidden text-xs text-amber-400 hover:text-amber-300 font-semibold px-2 py-1 rounded-lg hover:bg-amber-500/10">
+                        <i class="fas fa-code"></i> Generar Python
+                    </button>
+                    <button id="btnClearProgram" class="text-xs text-rose-400 hover:text-rose-300 font-semibold px-2.5 py-1 rounded-lg hover:bg-rose-500/10">
+                        <i class="fas fa-trash-can"></i> Limpiar
+                    </button>
+                </div>
+            </div>
+
+            <!-- VISTA DE BLOQUES -->
+            <div id="viewBlocks" class="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-4 min-h-0">
+                <div class="sm:col-span-5 bg-slate-950 rounded-2xl border border-slate-800 p-3.5 flex flex-col gap-2 overflow-y-auto">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 px-1 mb-1">
+                        <i class="fas fa-toolbox text-cyan-400 mr-1"></i> Controles & Motores
+                    </span>
+
+                    <div data-type="setMotors" class="palette-block bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
+                        <i class="fas fa-sliders text-cyan-400 mr-1"></i> Motores (Izq, Der)
+                    </div>
+                    <div data-type="moveTime" class="palette-block bg-cyan-600/20 border border-cyan-500/40 text-cyan-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
+                        <i class="fas fa-stopwatch text-cyan-400 mr-1"></i> Avanzar por Tiempo (ms)
+                    </div>
+                    <div data-type="stopMotors" class="palette-block bg-rose-600/20 border border-rose-500/40 text-rose-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
+                        <i class="fas fa-hand text-rose-400 mr-1"></i> Detener Motores
+                    </div>
+                    <div data-type="wait" class="palette-block bg-purple-600/20 border border-purple-500/40 text-purple-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
+                        <i class="fas fa-clock text-purple-400 mr-1"></i> Esperar (ms)
+                    </div>
+                    <div data-type="repeat" class="palette-block bg-emerald-600/20 border border-emerald-500/40 text-emerald-200 p-2.5 rounded-xl text-xs font-bold cursor-pointer">
+                        <i class="fas fa-repeat text-emerald-400 mr-1"></i> Bucle Repetir
+                    </div>
+                </div>
+
+                <div class="sm:col-span-7 bg-slate-950 rounded-2xl border border-slate-800 p-3.5 flex flex-col overflow-hidden">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 px-1 mb-2">
+                        <i class="fas fa-list-ol text-cyan-400 mr-1"></i> Secuencia del Robot
+                    </span>
+                    <div id="programDropzone" class="flex-1 bg-slate-900/60 rounded-xl border-2 border-dashed border-slate-800 p-2 overflow-y-auto space-y-2 min-h-[200px]">
+                        <div id="emptyDropzoneMsg" class="h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center">
+                            <i class="fas fa-microchip text-3xl mb-2 opacity-40"></i>
+                            <p class="text-xs">Agrega comandos de motor o cambia al editor Python para usar lógica continua con sensores.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA DE EDITOR PYTHON -->
+            <div id="viewPython" class="flex-1 flex flex-col gap-3 overflow-hidden hidden">
+                <div class="flex-1 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col overflow-hidden shadow-inner">
+                    <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                        <span class="font-mono text-amber-400"><i class="fab fa-python mr-1"></i> script_diferencial.py</span>
+                        <span class="text-[10px]">API: <code>robot.set_motores(izq, der)</code> | <code>robot.get_distancia_frontal()</code> | <code>robot.leer_sensor_suelo('centro')</code></span>
+                    </div>
+                    <textarea id="pythonEditor" class="flex-1 bg-slate-950 text-amber-200 font-mono text-xs p-4 focus:outline-none resize-none leading-relaxed" spellcheck="false"></textarea>
+                </div>
+
+                <div class="h-32 bg-slate-950 rounded-xl border border-slate-800 flex flex-col overflow-hidden">
+                    <div class="bg-slate-900/80 px-3 py-1.5 border-b border-slate-800 text-[11px] font-semibold text-slate-400 flex items-center justify-between">
+                        <span><i class="fas fa-terminal text-cyan-400 mr-1"></i> Consola de Salida</span>
+                        <button id="btnClearConsole" class="text-[10px] hover:text-white">Limpiar</button>
+                    </div>
+                    <div id="consoleOutput" class="flex-1 p-3 font-mono text-xs overflow-y-auto space-y-1 text-slate-300">
+                        <div class="text-slate-500 italic text-[11px]">Consola lista. Mensajes y lecturas aparecerán aquí...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE AYUDA -->
+    <div id="helpModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button id="btnCloseHelp" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg"><i class="fas fa-times"></i></button>
+            <h3 class="text-lg font-bold text-white mb-3"><i class="fas fa-book text-cyan-400 mr-2"></i> Documentación de API Robótica</h3>
+            <div class="space-y-2 text-xs text-slate-300 font-mono">
+                <p><b class="text-amber-400">robot.set_motores(izq, der)</b>: Establece la potencia de cada servomotor (-100 a 100).</p>
+                <p><b class="text-amber-400">robot.avanzar_tiempo(ms)</b>: Avanza durante un tiempo en milisegundos.</p>
+                <p><b class="text-amber-400">robot.get_distancia_frontal()</b>: Retorna distancia en cm al obstáculo frontal.</p>
+                <p><b class="text-amber-400">robot.get_distancia_izquierda() / derecha()</b>: Distancias laterales.</p>
+                <p><b class="text-amber-400">robot.leer_sensor_suelo('izq'|'centro'|'der')</b>: Retorna el color Hex del suelo debajo del sensor.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- LÓGICA DE SIMULACIÓN Y SENSORES -->
+    <script>
+        // --- PRESETS DE CÓDIGO PYTHON SEGÚN NIVEL ---
+        const PYTHON_PRESETS = {
+            1: `# Reto 1: Control Básico de Motores
+# Ambos motores al 60% para avanzar directo
+robot.set_motores(60, 60)
+robot.esperar(1500)
+
+# Giro sobre su propio eje (Motor Izquierdo 50%, Derecho -50%)
+robot.set_motores(50, -50)
+robot.esperar(600)
+
+# Avanzar hacia la meta
+robot.set_motores(60, 60)
+robot.esperar(1200)
+robot.parar()`,
+
+            2: `# Reto 2: Esquivar Obstáculo con Sensor Ultrasonido
+while True:
+    dist = robot.get_distancia_frontal()
+    print("Distancia frontal:", dist)
+    
+    if dist < 45:
+        # Obstáculo detectado -> Detenerse y girar
+        robot.set_motores(-40, 40)
+        robot.esperar(450)
+    else:
+        # Camino libre -> Avanzar
+        robot.set_motores(50, 50)
+        robot.esperar(100)`,
+
+            3: `# Reto 3: Seguidor de Línea Infrarrojo
+while True:
+    suelo_izq = robot.leer_sensor_suelo('izq')
+    suelo_der = robot.leer_sensor_suelo('der')
+    
+    # Detectar color oscuro / línea negra (componente RGB bajo)
+    es_negro_izq = suelo_izq == '#000000'
+    es_negro_der = suelo_der == '#000000'
+    
+    if es_negro_izq:
+        # Corregir a la izquierda
+        robot.set_motores(10, 50)
+    elif es_negro_der:
+        # Corregir a la derecha
+        robot.set_motores(50, 10)
+    else:
+        # Avanzar recto
+        robot.set_motores(50, 50)
+    robot.esperar(50)`,
+
+            4: `# Reto 4: Navegación Autónoma de Laberinto
+while True:
+    d_front = robot.get_distancia_frontal()
+    d_der = robot.get_distancia_derecha()
+    
+    if d_front < 40:
+        robot.set_motores(-50, 50) # Girar a la izquierda
+    elif d_der > 60:
+        robot.set_motores(50, 20)  # Seguir pared derecha
+    else:
+        robot.set_motores(50, 50)  # Avanzar
+    robot.esperar(80)`
+        };
+
+        const LEVELS = {
+            1: { goalText: "Avanza y gira usando potencia de motores", gridSize: 8, robot: { x: 100, y: 350, angle: 0 }, goal: { x: 350, y: 100, r: 25 }, walls: [] },
+            2: { goalText: "Esquiva el obstáculo detectado por ultrasonido", gridSize: 8, robot: { x: 80, y: 225, angle: 0 }, goal: { x: 380, y: 225, r: 25 }, walls: [{ x: 220, y: 160, w: 30, h: 130 }] },
+            3: { goalText: "Sigue la línea negra con los sensores de suelo", gridSize: 8, robot: { x: 60, y: 380, angle: -Math.PI/2 }, goal: { x: 380, y: 60, r: 25 }, walls: [], trackLine: true },
+            4: { goalText: "Navega el laberinto usando ultrasonido lateral", gridSize: 8, robot: { x: 60, y: 380, angle: -Math.PI/2 }, goal: { x: 380, y: 60, r: 25 }, walls: [{ x: 140, y: 100, w: 20, h: 300 }, { x: 280, y: 0, w: 20, h: 300 }] },
+            sandbox: { goalText: "Diseña tu pista y prueba sensores", gridSize: 8, robot: { x: 60, y: 380, angle: 0 }, goal: { x: 380, y: 60, r: 25 }, walls: [] }
+        };
+
+        // ESTADO GLOBAL FISICO DEL ROBOT
+        let currentLevelKey = "1";
+        let activeMode = "blocks";
+        let robotState = {
+            x: 100, y: 350, angle: 0, radius: 18,
+            motorLeft: 0, motorRight: 0,
+            sensors: { front: 0, left: 0, right: 0, irLeft: '#1e293b', irCenter: '#1e293b', irRight: '#1e293b' }
+        };
+
+        let initialRobotState = {};
+        let isSimulating = false;
+        let isPaused = false;
+        let programSequence = [];
+        let executionIndex = 0;
+        let mainPhysicsLoop = null;
+
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const pythonEditor = document.getElementById('pythonEditor');
+
+        function init() {
+            loadLevel("1");
+            setupEvents();
+            startPhysicsLoop();
+        }
+
+        function loadLevel(key) {
+            currentLevelKey = key;
+            const lvl = LEVELS[key];
+            robotState.x = lvl.robot.x;
+            robotState.y = lvl.robot.y;
+            robotState.angle = lvl.robot.angle;
+            robotState.motorLeft = 0;
+            robotState.motorRight = 0;
+            initialRobotState = { ...robotState };
+
+            if (PYTHON_PRESETS[key]) {
+                pythonEditor.value = PYTHON_PRESETS[key];
+            } else {
+                pythonEditor.value = `# Modo Libre Sandbox\nrobot.set_motores(50, 50)\nrobot.esperar(1000)`;
+            }
+
+            document.getElementById('levelGoalText').innerText = lvl.goalText;
+            document.getElementById('sandboxTools').classList.toggle('hidden', key !== 'sandbox');
+            resetSim();
+        }
+
+        // --- MOTOR DE FÍSICA Y RAYCASTING ---
+        function startPhysicsLoop() {
+            let lastTime = performance.now();
+            function loop(now) {
+                const dt = Math.min((now - lastTime) / 1000, 0.1);
+                lastTime = now;
+
+                if (isSimulating && !isPaused) {
+                    updatePhysics(dt);
+                }
+                updateSensors();
+                render();
+                updateTelemetryUI();
+                requestAnimationFrame(loop);
+            }
+            requestAnimationFrame(loop);
+        }
+
+        function updatePhysics(dt) {
+            // Cinemática Diferencial de Dos Motores
+            const vL = (robotState.motorLeft / 100) * 120; // Vel lineal motor izq
+            const vR = (robotState.motorRight / 100) * 120; // Vel lineal motor der
+            const L = robotState.radius * 2; // Ancho del chasis
+
+            const v = (vL + vR) / 2;
+            const w = (vR - vL) / L;
+
+            robotState.angle += w * dt;
+            robotState.x += Math.cos(robotState.angle) * v * dt;
+            robotState.y += Math.sin(robotState.angle) * v * dt;
+
+            // Restricciones de pantalla
+            robotState.x = Math.max(robotState.radius, Math.min(canvas.width - robotState.radius, robotState.x));
+            robotState.y = Math.max(robotState.radius, Math.min(canvas.height - robotState.radius, robotState.y));
+
+            // Colisiones con Muros
+            const lvl = LEVELS[currentLevelKey];
+            lvl.walls.forEach(w => {
+                if (robotState.x + robotState.radius > w.x && robotState.x - robotState.radius < w.x + w.w &&
+                    robotState.y + robotState.radius > w.y && robotState.y - robotState.radius < w.y + w.h) {
+                    stopSim();
+                    showOverlay("💥", "¡Colisión de Bumper!", "El robot ha chocado físicamente contra un obstáculo.");
+                }
+            });
+
+            // Verificación Meta
+            const dx = robotState.x - lvl.goal.x;
+            const dy = robotState.y - lvl.goal.y;
+            if (Math.sqrt(dx*dx + dy*dy) < lvl.goal.r) {
+                stopSim();
+                confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+                showOverlay("🎉", "¡Objetivo Logrado!", "El robot alcanzó la meta con éxito.");
+            }
+        }
+
+        // RAYCASTING ULTRASONIDO
+        function castRay(angleOffset) {
+            const rayAngle = robotState.angle + angleOffset;
+            const maxDist = 250;
+            const step = 4;
+            const lvl = LEVELS[currentLevelKey];
+
+            for (let d = 0; d < maxDist; d += step) {
+                const px = robotState.x + Math.cos(rayAngle) * d;
+                const py = robotState.y + Math.sin(rayAngle) * d;
+
+                if (px <= 0 || px >= canvas.width || py <= 0 || py >= canvas.height) return d;
+                for (let w of lvl.walls) {
+                    if (px >= w.x && px <= w.x + w.w && py >= w.y && py <= w.y + w.h) return d;
+                }
+            }
+            return maxDist;
+        }
+
+        function updateSensors() {
+            robotState.sensors.front = Math.round(castRay(0));
+            robotState.sensors.left = Math.round(castRay(-Math.PI / 4));
+            robotState.sensors.right = Math.round(castRay(Math.PI / 4));
+
+            // Sensores Infrarrojos de Suelo
+            const off = 12;
+            robotState.sensors.irLeft = sampleGroundColor(robotState.x + Math.cos(robotState.angle - 0.5) * off, robotState.y + Math.sin(robotState.angle - 0.5) * off);
+            robotState.sensors.irCenter = sampleGroundColor(robotState.x + Math.cos(robotState.angle) * (off + 4), robotState.y + Math.sin(robotState.angle) * (off + 4));
+            robotState.sensors.irRight = sampleGroundColor(robotState.x + Math.cos(robotState.angle + 0.5) * off, robotState.y + Math.sin(robotState.angle + 0.5) * off);
+        }
+
+        function sampleGroundColor(x, y) {
+            const lvl = LEVELS[currentLevelKey];
+            if (lvl.trackLine) {
+                // Pista de Línea Negra Curva
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                const distToCenter = Math.sqrt((x-cx)*(x-cx) + (y-cy)*(y-cy));
+                if (Math.abs(distToCenter - 140) < 18) return '#000000'; // Línea Negra
+            }
+            return '#1e293b'; // Suelo Normal
+        }
+
+        // RENDERIZADO VISUAL EN CANVAS
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const lvl = LEVELS[currentLevelKey];
+
+            // Cuadrícula Fondo
+            ctx.strokeStyle = '#1e293b';
+            for (let i = 0; i < canvas.width; i += 40) {
+                ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            }
+
+            // Pista de Línea Negra
+            if (lvl.trackLine) {
+                ctx.beginPath();
+                ctx.arc(canvas.width/2, canvas.height/2, 140, 0, Math.PI*2);
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 26;
+                ctx.stroke();
+            }
+
+            // Meta
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.3)';
+            ctx.beginPath(); ctx.arc(lvl.goal.x, lvl.goal.y, lvl.goal.r, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 3; ctx.stroke();
+
+            // Muros
+            ctx.fillStyle = '#475569';
+            lvl.walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
+
+            // RAYCASTING VISUAL (Ultrasonido)
+            drawRay(0, robotState.sensors.front, '#06b6d4');
+            drawRay(-Math.PI / 4, robotState.sensors.left, '#38bdf8');
+            drawRay(Math.PI / 4, robotState.sensors.right, '#38bdf8');
+
+            // CHASSIS DEL ROBOT
+            ctx.save();
+            ctx.translate(robotState.x, robotState.y);
+            ctx.rotate(robotState.angle);
+
+            // Servomotores / Ruedas
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(-10, -robotState.radius - 4, 20, 6);
+            ctx.fillRect(-10, robotState.radius - 2, 20, 6);
+
+            // Cuerpo principal
+            ctx.beginPath(); ctx.arc(0, 0, robotState.radius, 0, Math.PI*2);
+            ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#06b6d4'; ctx.lineWidth = 3; ctx.fill(); ctx.stroke();
+
+            // Puntos Sensores Suelo
+            ctx.fillStyle = robotState.sensors.irLeft; ctx.beginPath(); ctx.arc(8, -8, 3, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = robotState.sensors.irRight; ctx.beginPath(); ctx.arc(8, 8, 3, 0, Math.PI*2); ctx.fill();
+
+            // Indicador de Frente
+            ctx.fillStyle = '#06b6d4'; ctx.beginPath(); ctx.arc(12, 0, 4, 0, Math.PI*2); ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawRay(angleOff, distance, color) {
+            const rayAngle = robotState.angle + angleOff;
+            ctx.beginPath();
+            ctx.moveTo(robotState.x, robotState.y);
+            ctx.lineTo(robotState.x + Math.cos(rayAngle) * distance, robotState.y + Math.sin(rayAngle) * distance);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([4, 4]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        function updateTelemetryUI() {
+            document.getElementById('telemetryDistFront').innerText = robotState.sensors.front + ' cm';
+            document.getElementById('telemetryDistLeft').innerText = robotState.sensors.left + ' cm';
+            document.getElementById('telemetryDistRight').innerText = robotState.sensors.right + ' cm';
+            document.getElementById('telemetryMotorLeft').innerText = Math.round(robotState.motorLeft) + '%';
+            document.getElementById('telemetryMotorRight').innerText = Math.round(robotState.motorRight) + '%';
+
+            document.getElementById('irSensorLeft').style.backgroundColor = robotState.sensors.irLeft;
+            document.getElementById('irSensorCenter').style.backgroundColor = robotState.sensors.irCenter;
+            document.getElementById('irSensorRight').style.backgroundColor = robotState.sensors.irRight;
+        }
+
+        // --- INTÉRPRETE DE COMANDOS ROBÓTICOS DE PYTHON ---
+        async function runPythonScript() {
+            isSimulating = true;
+            isPaused = false;
+            const rawCode = pythonEditor.value;
+
+            // API disponible dentro del script Python simulado
+            const robot = {
+                set_motores: (izq, der) => { robotState.motorLeft = Number(izq) || 0; robotState.motorRight = Number(der) || 0; },
+                parar: () => { robotState.motorLeft = 0; robotState.motorRight = 0; },
+                esperar: (ms) => new Promise(r => setTimeout(r, ms || 10)),
+                get_distancia_frontal: () => robotState.sensors.front,
+                get_distancia_izquierda: () => robotState.sensors.left,
+                get_distancia_derecha: () => robotState.sensors.right,
+                leer_sensor_suelo: (pos) => pos === 'izq' ? robotState.sensors.irLeft : pos === 'der' ? robotState.sensors.irRight : robotState.sensors.irCenter
+            };
+
+            const consoleLog = (msg) => {
+                const out = document.getElementById('consoleOutput');
+                if (out) {
+                    const line = document.createElement('div');
+                    line.textContent = `> ${msg}`;
+                    out.appendChild(line);
+                    out.scrollTop = out.scrollHeight;
+                }
+            };
+
+            try {
+                // Transpilador Python robusto basándose en sangría
+                const lines = rawCode.split('\n');
+                let jsCode = '';
+                let indentStack = [0];
+
+                for (let line of lines) {
+                    const trimmed = line.trim();
+                    if (!trimmed || trimmed.startsWith('#')) continue;
+
+                    // Contar espacios al inicio para determinar el nivel de sangría
+                    const currentIndent = line.search(/\S/);
+
+                    // Reemplazos preliminares de operadores y expresiones
+                    let translated = trimmed
+                        .replace(/\bTrue\b/g, 'true')
+                        .replace(/\bFalse\b/g, 'false')
+                        .replace(/\bNone\b/g, 'null')
+                        .replace(/\band\b/g, '&&')
+                        .replace(/\bor\b/g, '||')
+                        .replace(/\bnot\b/g, '!')
+                        .replace(/print\((.*?)\)/g, 'consoleLog($1)')
+                        .replace(/robot\.esperar\((.*?)\)/g, 'await robot.esperar($1)');
+
+                    const isElif = translated.startsWith('elif ') && translated.endsWith(':');
+                    const isElse = translated === 'else:';
+
+                    // Si es elif o else, cerramos 1 nivel para unirlo al 'if' previo
+                    const targetIndent = (isElif || isElse) 
+                        ? (indentStack.length > 1 ? indentStack[indentStack.length - 2] : currentIndent)
+                        : currentIndent;
+
+                    // Desapilar sangrías y cerrar bloques `}`
+                    while (indentStack.length > 1 && indentStack[indentStack.length - 1] > targetIndent) {
+                        indentStack.pop();
+                        jsCode += '}\n';
+                    }
+
+                    // Construcción de estructuras de control válidas en JS
+                    if (translated.startsWith('while ') && translated.endsWith(':')) {
+                        const cond = translated.slice(6, -1).trim();
+                        translated = `while (isSimulating && (${cond})) {\n  await robot.esperar(10);`;
+                        indentStack.push(currentIndent + 4);
+                    } else if (translated.startsWith('if ') && translated.endsWith(':')) {
+                        const cond = translated.slice(3, -1).trim();
+                        translated = `if (${cond}) {`;
+                        indentStack.push(currentIndent + 4);
+                    } else if (isElif) {
+                        const cond = translated.slice(5, -1).trim();
+                        translated = `else if (${cond}) {`;
+                        indentStack.push(currentIndent + 4);
+                    } else if (isElse) {
+                        translated = `else {`;
+                        indentStack.push(currentIndent + 4);
+                    }
+
+                    jsCode += translated + '\n';
+                }
+
+                // Cerrar todos los bloques abiertos al final del archivo
+                while (indentStack.length > 1) {
+                    indentStack.pop();
+                    jsCode += '}\n';
+                }
+
+                // Envolver en función asíncrona ejecutable
+                const asyncFn = new Function('robot', 'isSimulating', 'consoleLog', `return (async () => {\n${jsCode}\n})()`);
+                await asyncFn(robot, isSimulating, consoleLog);
+            } catch (err) {
+                console.error(err);
+                const out = document.getElementById('consoleOutput');
+                if (out) {
+                    const line = document.createElement('div');
+                    line.className = 'text-rose-400 font-bold';
+                    line.textContent = `❌ Error de Sintaxis/Ejecución: ${err.message}`;
+                    out.appendChild(line);
+                }
+            }
+        }
+
+        function resetSim() {
+            isSimulating = false;
+            isPaused = false;
+            robotState.x = initialRobotState.x;
+            robotState.y = initialRobotState.y;
+            robotState.angle = initialRobotState.angle;
+            robotState.motorLeft = 0;
+            robotState.motorRight = 0;
+
+            document.getElementById('btnRun').classList.remove('hidden');
+            document.getElementById('btnPause').classList.add('hidden');
+            document.getElementById('canvasOverlay').classList.add('hidden');
+        }
+
+        function stopSim() {
+            isSimulating = false;
+            robotState.motorLeft = 0;
+            robotState.motorRight = 0;
+            document.getElementById('btnRun').classList.remove('hidden');
+            document.getElementById('btnPause').classList.add('hidden');
+        }
+
+        function showOverlay(icon, title, message) {
+            document.getElementById('overlayIcon').innerText = icon;
+            document.getElementById('overlayTitle').innerText = title;
+            document.getElementById('overlayMessage').innerText = message;
+            document.getElementById('canvasOverlay').classList.remove('hidden');
+        }
+
+        // --- MANEJO DE EVENTOS Y CONTROLES UI ---
+        function setupEvents() {
+            // Nivel
+            document.getElementById('levelSelect').addEventListener('change', (e) => {
+                loadLevel(e.target.value);
+            });
+
+            // Controles Simulación
+            document.getElementById('btnRun').addEventListener('click', () => {
+                resetSim();
+                document.getElementById('btnRun').classList.add('hidden');
+                document.getElementById('btnPause').classList.remove('hidden');
+
+                if (activeMode === 'python') {
+                    runPythonScript();
+                } else {
+                    runBlockProgram();
+                }
+            });
+
+            document.getElementById('btnPause').addEventListener('click', () => {
+                isPaused = !isPaused;
+                document.getElementById('btnPause').innerHTML = isPaused 
+                    ? '<i class="fas fa-play text-xs"></i> <span>Reanudar</span>'
+                    : '<i class="fas fa-pause text-xs"></i> <span>Pausa</span>';
+            });
+
+            document.getElementById('btnReset').addEventListener('click', resetSim);
+            document.getElementById('overlayBtn').addEventListener('click', resetSim);
+
+            // Pestañas Python / Bloques
+            const tabBlocks = document.getElementById('tabBlocks');
+            const tabPython = document.getElementById('tabPython');
+            const viewBlocks = document.getElementById('viewBlocks');
+            const viewPython = document.getElementById('viewPython');
+            const btnSync = document.getElementById('btnSyncFromBlocks');
+
+            tabBlocks.addEventListener('click', () => {
+                activeMode = 'blocks';
+                tabBlocks.className = 'px-3.5 py-1.5 bg-slate-800 text-cyan-400 font-bold text-xs rounded-lg border border-slate-700 flex items-center gap-2';
+                tabPython.className = 'px-3.5 py-1.5 bg-transparent hover:bg-slate-800 text-slate-400 font-bold text-xs rounded-lg transition-all flex items-center gap-2';
+                viewBlocks.classList.remove('hidden');
+                viewPython.classList.add('hidden');
+                btnSync.classList.add('hidden');
+            });
+
+            tabPython.addEventListener('click', () => {
+                activeMode = 'python';
+                tabPython.className = 'px-3.5 py-1.5 bg-slate-800 text-amber-400 font-bold text-xs rounded-lg border border-slate-700 flex items-center gap-2';
+                tabBlocks.className = 'px-3.5 py-1.5 bg-transparent hover:bg-slate-800 text-slate-400 font-bold text-xs rounded-lg transition-all flex items-center gap-2';
+                viewPython.classList.remove('hidden');
+                viewBlocks.classList.add('hidden');
+                btnSync.classList.remove('hidden');
+            });
+
+            // Limpieza
+            document.getElementById('btnClearConsole').addEventListener('click', () => {
+                document.getElementById('consoleOutput').innerHTML = '';
+            });
+
+            document.getElementById('btnClearProgram').addEventListener('click', () => {
+                programSequence = [];
+                renderDropzone();
+            });
+
+            // Modal Ayuda
+            const helpModal = document.getElementById('helpModal');
+            document.getElementById('btnHelp').addEventListener('click', () => helpModal.classList.remove('hidden'));
+            document.getElementById('btnCloseHelp').addEventListener('click', () => helpModal.classList.add('hidden'));
+
+            // Paleta de Bloques
+            document.querySelectorAll('.palette-block').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const type = btn.getAttribute('data-type');
+                    addBlockToSequence(type);
+                });
+            });
+
+            // Herramientas Sandbox
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active-tool', 'bg-cyan-600'));
+                    btn.classList.add('active-tool', 'bg-cyan-600');
+                });
+            });
+        }
+
+        // --- SISTEMA DE BLOQUES SECUENCIALES ---
+        function addBlockToSequence(type) {
+            let blockData = { type, id: Date.now() };
+
+            if (type === 'setMotors') {
+                blockData.left = 60;
+                blockData.right = 60;
+            } else if (type === 'moveTime' || type === 'wait') {
+                blockData.duration = 1000;
+            } else if (type === 'repeat') {
+                blockData.count = 3;
+            }
+
+            programSequence.push(blockData);
+            renderDropzone();
+        }
+
+        function renderDropzone() {
+            const dropzone = document.getElementById('programDropzone');
+            if (programSequence.length === 0) {
+                dropzone.innerHTML = `
+                    <div id="emptyDropzoneMsg" class="h-full flex flex-col items-center justify-center text-slate-500 p-6 text-center">
+                        <i class="fas fa-microchip text-3xl mb-2 opacity-40"></i>
+                        <p class="text-xs">Agrega comandos de motor o cambia al editor Python para usar lógica continua con sensores.</p>
+                    </div>`;
+                return;
+            }
+
+            dropzone.innerHTML = '';
+            programSequence.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-900 border border-slate-700 p-2.5 rounded-xl text-xs flex items-center justify-between gap-2';
+
+                let label = '';
+                if (item.type === 'setMotors') {
+                    label = `<i class="fas fa-sliders text-cyan-400 mr-1"></i> Motores: Izq 
+                        <input type="number" value="${item.left}" onchange="updateBlockVal(${idx}, 'left', this.value)" class="w-12 bg-slate-800 text-white px-1.5 py-0.5 rounded border border-slate-700 text-center font-mono"> % | Der 
+                        <input type="number" value="${item.right}" onchange="updateBlockVal(${idx}, 'right', this.value)" class="w-12 bg-slate-800 text-white px-1.5 py-0.5 rounded border border-slate-700 text-center font-mono"> %`;
+                } else if (item.type === 'moveTime') {
+                    label = `<i class="fas fa-stopwatch text-cyan-400 mr-1"></i> Avanzar por 
+                        <input type="number" value="${item.duration}" onchange="updateBlockVal(${idx}, 'duration', this.value)" class="w-14 bg-slate-800 text-white px-1.5 py-0.5 rounded border border-slate-700 text-center font-mono"> ms`;
+                } else if (item.type === 'stopMotors') {
+                    label = `<i class="fas fa-hand text-rose-400 mr-1"></i> Detener Motores`;
+                } else if (item.type === 'wait') {
+                    label = `<i class="fas fa-clock text-purple-400 mr-1"></i> Esperar 
+                        <input type="number" value="${item.duration}" onchange="updateBlockVal(${idx}, 'duration', this.value)" class="w-14 bg-slate-800 text-white px-1.5 py-0.5 rounded border border-slate-700 text-center font-mono"> ms`;
+                } else if (item.type === 'repeat') {
+                    label = `<i class="fas fa-repeat text-emerald-400 mr-1"></i> Repetir 
+                        <input type="number" value="${item.count}" onchange="updateBlockVal(${idx}, 'count', this.value)" class="w-10 bg-slate-800 text-white px-1.5 py-0.5 rounded border border-slate-700 text-center font-mono"> veces`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center font-medium text-slate-200">${label}</div>
+                    <button onclick="removeBlock(${idx})" class="text-slate-500 hover:text-rose-400 text-xs px-1.5 py-0.5"><i class="fas fa-times"></i></button>
+                `;
+                dropzone.appendChild(card);
+            });
+        }
+
+        window.updateBlockVal = function(index, prop, val) {
+            programSequence[index][prop] = Number(val) || 0;
+        };
+
+        window.removeBlock = function(index) {
+            programSequence.splice(index, 1);
+            renderDropzone();
+        };
+
+        async function runBlockProgram() {
+            isSimulating = true;
+            for (let block of programSequence) {
+                if (!isSimulating) break;
+
+                if (block.type === 'setMotors') {
+                    robotState.motorLeft = block.left;
+                    robotState.motorRight = block.right;
+                } else if (block.type === 'moveTime') {
+                    await new Promise(r => setTimeout(r, block.duration));
+                } else if (block.type === 'stopMotors') {
+                    robotState.motorLeft = 0;
+                    robotState.motorRight = 0;
+                } else if (block.type === 'wait') {
+                    await new Promise(r => setTimeout(r, block.duration));
+                }
+            }
+        }
+
+        // Inicialización al cargar la ventana
+        window.onload = init;
+    </script>
+</body>
+</html>
